@@ -1,0 +1,26 @@
+version: 0.0
+os: linux
+
+files:
+  - source: source
+    destination: /home/ubuntu/flask_app
+  - source: flask_app.conf
+    destination: /etc/apache2/sites-available
+file_exists_behavior: OVERWRITE
+
+hooks:
+  ApplicationStop:
+    - location: aws-scripts/app-stop.sh
+      timeout: 300
+
+  BeforeInstall:
+    - location: aws-scripts/before-install.sh
+      timeout: 300
+
+  AfterInstall:
+    - location: aws-scripts/after-install.sh
+      timeout: 300
+
+  ApplicationStart:
+    - location: aws-scripts/app-start.sh
+      timeout: 300
