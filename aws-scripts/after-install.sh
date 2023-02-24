@@ -8,4 +8,3 @@ if [ ! -h /var/www/html/flask_app ]; then
 fi
 # apache: enable site
 sudo a2ensite flask_app
-sudo systemctl reload apache
