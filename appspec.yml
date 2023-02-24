@@ -13,10 +13,6 @@ hooks:
     - location: aws-scripts/app-stop.sh
       timeout: 300
 
-  BeforeInstall:
-    - location: aws-scripts/before-install.sh
-      timeout: 300
-
   AfterInstall:
     - location: aws-scripts/after-install.sh
       timeout: 300
