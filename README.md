@@ -3,15 +3,15 @@
 
 Sections of this walk-through:
 
-1. [Create a Basic Flask App](#flask)
-2. [AppSpec YAML and Deployment Scripting](#appspec)
-3. [Apache Configuration](#apache)
-4. [EC2 Instance Setup](#ec2)
-5. [AWS CodeDeploy and CodePipepline Setup](#deploy)
+1. [Create a Basic Flask App](#create-a-basic-flask-app)
+2. [AppSpec YAML and Deployment Scripting](#appspec-yaml-and-deployment-scripting)
+3. [Apache Configuration](#apache-configuration)
+4. [EC2 Instance Setup](#ec2-instance-setup)
+5. [AWS CodeDeploy and CodePipeline Setup](#aws-codedeploy-and-codepipeline-setup)
 
 (This walk-through assumes you're working on a macOS or Linux computer with Python 3 installed and that you know how to use git. If you're using Windows, some of the commands may be somewhat different.)
 
-## Create a Basic Flask App {#flask}
+## Create a Basic Flask App
 
 Before you create a basic Flask app, [create your repo](https://docs.github.com/en/get-started/quickstart/create-a-repo) on GitHub and [clone it](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) onto your computer. I recommend using the .gitignore template for Python, so venv and pycache will be excluded from your repo.
 
@@ -89,7 +89,7 @@ from run import app as application
 
 (The `/var/www/html/flask_app/` path means nothing for you but will be used when you deploy to an EC2 instance.)
 
-## AppSpec YAML and Deployment Scripting {#appspec}
+## AppSpec YAML and Deployment Scripting
 
 To deploy an app using AWSCodeDeploy, you'll need an [AppSpec File](https://docs.aws.amazon.com/codedeploy/latest/userguide/reference-appspec-file-example.html#appspec-file-example-server) and accompanying shell scripts. The AppSpec File tells CodeDeploy where to place files and what commands to run at different steps of a deployment. Create the folowing AppSpec File and accompanying shell scripts:
 
@@ -153,11 +153,11 @@ sudo systemctl reload apache
 sudo systemctl start apache2
 ```
 
-## Apache Configuration {#apache}
+## Apache Configuration
 
 Apache configuration is split into two parts. One part is the conf file for your site. That's right here. This file is put in place by CodeDeploy, as configured in the AppSpec File. 
 
-The other part, installing Apache and mod_wsgi on your EC2 instance, is part of [EC2 Instance Setup](#ec2), below.
+The other part, installing Apache and mod_wsgi on your EC2 instance, is part of [EC2 Instance Setup](#ec2-instance-setup), below.
 
 #### flask_app.conf:
 ```Apache
@@ -202,17 +202,19 @@ After completing the first three parts of this walk-through, organize the files 
 
 If you haven't already, commit these changes and push them to GitHub.
 
-## EC2 Instance Setup {#ec2}
+## EC2 Instance Setup
 
 In *AWS Console > EC2*, select *Launch Instances* and configure your instance as follows:
 
-* Name: flask-server (or whatever you wish)
-* OS: Ubuntu Server 20.04 LTS (HVM), SSD Volume Type
-* Architecture: 64-bit (x86) 
-* Instance type: t2.micro (Free Tier Eligible; or whatever you wish)
-* Key pair: Existing (if you have one and know how to use it) or no key pair (not recommended) set one up now (outside the scope of this walk-through)
-* Firewall (security groups): Existing (if you have one for web servers) or Allow SSH traffic from My IP & Allow HTTP/HTTPS traffic from the internet
-* User Data: Paste in the server setup script, below. See the inline comments for what the different blocks of commands are for. (Alternatively: ssh into the server after it boots and run these commands interactively.) Replace "us-east-1" (twice) with the AWS region identifier your instance is in.
+- Name and tags (you'll have to *Add tag* to add the second tag)
+	1. Key=Name; Value=flask-server (or whatever you wish)
+	2. Key=flask_app_deploy_target; Value=true
+- OS: Ubuntu Server 20.04 LTS (HVM), SSD Volume Type
+- Architecture: 64-bit (x86) 
+- Instance type: t2.micro (Free Tier Eligible; or whatever you wish)
+- Key pair: Existing (if you have one and know how to use it) or no key pair (not recommended) set one up now (outside the scope of this walk-through)
+- Firewall (security groups): Existing (if you have one for web servers) or Allow SSH traffic from My IP & Allow HTTP/HTTPS traffic from the internet
+- User Data: Paste in the server setup script, below. See the inline comments for what the different blocks of commands are for. (Alternatively: ssh into the server after it boots and run these commands interactively.) Replace "us-east-1" (twice) with the AWS region identifier your instance is in.
 
 (Regarding the *key pair*: You might be able to get by without ever having to ssh into this server, but I'd still set up a key pair. See [this documenation from AWS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) for more information about EC2 instances and key pairs.)
 
@@ -246,15 +248,11 @@ sudo ./install auto
 
 Click "Launch Instance" to create the instance. 
 
-### Set Tag on Instance
-
-After a few moments, you'll be able to add a tag to the instance in *AWS Console > EC2* by selecting it and then *Actions > Instance Settings > Manage Tags*. Add a tag with the key "flask_app_deploy_target" and set the value to "true". *Save* this change. This tag will be used by CodeDeploy to discern which server(s) to deploy to.
-
-At this point you should be able to access the instance via ssh or https. The default site has been disabled but Apache wasn't restarted for that change to take effect, so you should be able to access it via your browser -- http://{public IPv4 address}
+After a minute or so, you should be able to access the instance via ssh or https. The default site has been disabled but Apache wasn't restarted for that change to take effect, so you should be able to access it via your browser -- http://{public IPv4 address}
 
 (It might take a few minutes for the instance to boot and for the server setup script to complete. The next steps should take long enough that it won't be an issue. But if you're doing things out-of-order, this is something to keep in mind.)
 
-## AWS CodeDeploy and CodePipeline {#deploy}
+## AWS CodeDeploy and CodePipeline
 
 Before you can configure CodeDeploy, you need to create an IAM Service Role for CodeDeploy and an IAM Instance Profile for your EC2 Instance. AWS provides excellent instructions for completing these steps:
 
