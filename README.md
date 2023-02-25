@@ -8,8 +8,9 @@ Sections of this walk-through:
 3. [Apache Configuration](#apache-configuration)
 4. [EC2 Instance Setup](#ec2-instance-setup)
 5. [AWS CodeDeploy and CodePipeline Setup](#aws-codedeploy-and-codepipeline-setup)
+6. [Cleanup](#cleanup)
 
-(This walk-through assumes you're working on a macOS or Linux computer with Python 3 installed and that you know how to use git. If you're using Windows, some of the commands may be somewhat different.)
+This walk-through assumes you're working on a macOS or Linux computer with Python 3 installed and that you know how to use git. If you're using Windows, some of the commands may be somewhat different.
 
 ## Create a Basic Flask App
 
@@ -182,7 +183,7 @@ The other part, installing Apache and mod_wsgi on your EC2 instance, is part of 
 ```
 
 ## Files in Your Repo
-After completing the first three parts of this walk-through, organize the files in your repo as shown below. 
+After completing the first three parts of this walk-through, check that the files in your repo are organized as shown below. 
 
 - .gitignore
 - appspec.yml
@@ -212,29 +213,19 @@ In *AWS Console > EC2*, select *Launch Instances* and configure your instance as
 - OS: Ubuntu Server 20.04 LTS (HVM), SSD Volume Type
 - Architecture: 64-bit (x86) 
 - Instance type: t2.micro (Free Tier Eligible; or whatever you wish)
-- Key pair: Existing (if you have one and know how to use it) or no key pair (not recommended) set one up now (outside the scope of this walk-through)
+- Key pair: Existing (if you have one and know how to use it) or no key pair (not recommended) set one up now (outside the scope of this walk-through). (You might be able to get by without ever having to ssh into this server, but I'd still set up a key pair. See [this documenation from AWS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) for more information about EC2 instances and key pairs.)
 - Firewall (security groups): Existing (if you have one for web servers) or Allow SSH traffic from My IP & Allow HTTP/HTTPS traffic from the internet
-- User Data: Paste in the server setup script, below. See the inline comments for what the different blocks of commands are for. (Alternatively: ssh into the server after it boots and run these commands interactively.) Replace "us-east-1" (twice) with the AWS region identifier your instance is in.
-
-(Regarding the *key pair*: You might be able to get by without ever having to ssh into this server, but I'd still set up a key pair. See [this documenation from AWS](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) for more information about EC2 instances and key pairs.)
+- User Data: Paste in the server setup script, below. Replace "us-east-1" (twice) with the AWS region identifier your instance is in. See the inline comments for what the different blocks of commands are for. (Alternatively: ssh into the server after it boots and run these commands interactively.) 
 
 #### Server setup script (aka *User data*):
 ``` {.bash}
 #!/bin/bash
 sudo apt-get update
-# install awscli
-sudo apt install -y awscli
 # install python3, apache2, mod_wsgi
 sudo apt install -y python3-pip
 sudo apt install -y python3-venv
 sudo apt install -y apache2
 sudo apt install -y libapache2-mod-wsgi-py3
-# install certbot
-sudo apt remove certbot
-sudo snap install core
-sudo snap refresh core
-sudo snap install --classic certbot
-sudo ln -s /snap/bin/certbot /usr/bin/certbot
 # apache: disable default site
 sudo a2dissite 000-default.conf
 # install codedeploy agent
@@ -252,7 +243,7 @@ After a minute or so, you should be able to access the instance via ssh or https
 
 (It might take a few minutes for the instance to boot and for the server setup script to complete. The next steps should take long enough that it won't be an issue. But if you're doing things out-of-order, this is something to keep in mind.)
 
-## AWS CodeDeploy and CodePipeline
+## AWS CodeDeploy and CodePipeline Setup
 
 Before you can configure CodeDeploy, you need to create an IAM Service Role for CodeDeploy and an IAM Instance Profile for your EC2 Instance. AWS provides excellent instructions for completing these steps:
 
@@ -263,7 +254,7 @@ You'll need to associate the IAM instance profile with your previously created E
 
 In *AWS Console > CodeDeploy*, select *Deploy > Applications* and then *Create application*. Give it the *Application name* "flask_app" and select "EC2/On-premises" as the *Compute platform*. Create the application, then *Create deployment group*. Use the following settings:
 
-- Name: servers 
+- Name: flask_app_servers
 - Service role: The one you created just a bit ago. ("CodeDeployServiceRole" if you followed the instructions from AWS.) 
 - Deployment type: In-place
 - Environment configuration: Amazon EC2 instances
@@ -271,22 +262,22 @@ In *AWS Console > CodeDeploy*, select *Deploy > Applications* and then *Create a
     - After setting the tags, *Matching instances* should should be "1 unique matched instance"
 - Agent configuration with AWS Systems Manager: use defaults
 - Deployment settings: use defaults
-- Load balancer: unselect Enable load balancing
+- Load balancer: unselect *Enable load balancing*
 
-Then *Create delployment group*. AWS CodeDeploy is now configured. On to AWS CodePipeline...
+Then *Create delployment group* to finish setting up AWS CodeDeploy. On to AWS CodePipeline...
 
-In *AWS Console > CodePipeline*, select *Pipeline > Pipelines* and then *Create pipeline*. Use the followoing settings:
+In *AWS Console > CodePipeline*, select *Pipeline > Pipelines* and then *Create pipeline*. Use the following settings:
 
 - Pipeline name: flask_app
-- Service role: New service role
+- Service role: *New service role*
 - Role name: flask_app
-- Artifact store: Default location
-- Encryption key: Default AWS Managed Key
+- Artifact store: *Default location*
+- Encryption key: *Default AWS Managed Key*
 
 *Next*...
 
 - Source provider: GitHub (Version 2)
-- Connect to GitHub... follow the instructions to authenticate into your GitHub account and allow AWS CodePipeline to read from your repositories
+- Connect to GitHub... follow the prompts to authenticate into your GitHub account and allow AWS CodePipeline to read from your repositories
 - Repository name: Select the repository you created for flask_app
 - Branch name: Select your main branch
 - Change detection options: Start pipeline on code change = checked (so commits to your main branch will trigger a deployment)
@@ -301,8 +292,21 @@ In *AWS Console > CodePipeline*, select *Pipeline > Pipelines* and then *Create 
 - Deploy provider: AWS CodeDeploy
 - Region: Select the region your EC2 instance is in
 - Application name: Select the application name you used in CodeDeploy ("flask_app")
-- Deployment Group: Select the deployment group you added in CodeDeploy ("servers")
+- Deployment Group: Select the deployment group you added in CodeDeploy ("flask_app_servers")
 
 *Review*... *Create pipeline*
 
 At this point, a deploy should start. You can see the progress in CodePipeline. After it completes ("Deploy" turns green and "Succeeded" is shown next to it), you can access the site in your browser -- http://{public IPv4 address}
+
+## Cleanup
+
+Note that you have added a few AWS resources, which may have ongoing costs:
+
+- IAM Roles - no charge
+- CodePipeline pipeline - $1/month that it is active (but no charge in the first 30 days, or your first pipeline, and no charge if not being used)
+- CodeDeploy - no charge
+- EC2 - price varies depending on the instance configuration, but a t2.micro instance is about $9/month
+
+Actually running your pipeline and deploy uses network bandwidth and other resources that may entail some costs. But for a small app like this to a single server, we're only talking a few cents per month unless you're doing a ton of deploys.
+
+The EC2 instance you created is the resource you most want to keep an eye on. When you're done with it, terminate the instance. (Stopping it will stop the EC2 instance costs but the EBS costs will continue.)
