@@ -56,8 +56,8 @@ if __name__ == "__main__":
     <title>{{ title }}</title>
 </head>
 <body>
-<h1>{{ title }}</h1>
-<div>{{ content }}</div>
+  <h1>{{ title }}</h1>
+  <div>{{ content }}</div>
 </body>
 ```
 
@@ -182,7 +182,7 @@ The other part, installing Apache and mod_wsgi on your EC2 instance, is part of 
 </VirtualHost>
 ```
 
-## Files in Your Repo
+### Files in Your Repo
 After completing the first three parts of this walk-through, check that the files in your repo are organized as shown below. 
 
 - .gitignore
@@ -300,13 +300,13 @@ At this point, a deploy should start. You can see the progress in CodePipeline. 
 
 ## Cleanup
 
-Note that you have added a few AWS resources, which may have ongoing costs:
+If you followed all of these steps, you will have added a few AWS resources, which may have ongoing costs:
 
 - IAM Roles - no charge
-- CodePipeline pipeline - $1/month that it is active (but no charge in the first 30 days, or your first pipeline, and no charge if not being used)
+- CodePipeline - $1 per pipeline per month that it is active (but no charge in the first 30 days, or your first pipeline, and no charge if not being used)
 - CodeDeploy - no charge
 - EC2 - price varies depending on the instance configuration, but a t2.micro instance is about $9/month
 
-Actually running your pipeline and deploy uses network bandwidth and other resources that may entail some costs. But for a small app like this to a single server, we're only talking a few cents per month unless you're doing a ton of deploys.
+Actually running your pipeline and deploy uses network bandwidth and other resources that may entail some costs. But for a small app like this to a single server, we're only talking a couple cents per month unless you're doing a ton of deploys.
 
 The EC2 instance you created is the resource you most want to keep an eye on. When you're done with it, terminate the instance. (Stopping it will stop the EC2 instance costs but the EBS costs will continue.)
